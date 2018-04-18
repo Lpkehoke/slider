@@ -28,19 +28,6 @@ function slider(item, config) {
 
 	return makeReturn();
 
-	function makeReturn () {
-		var returnObject = {};
-
-		returnObject.destroySlider = function () {
-			destroy(newSlider);
-		};
-		returnObject.getSlider = function () {
-			return newSlider;
-		};
-
-		return returnObject;
-	}
-
 	function makeInerSlider() {
 		var iner = document.createElement('div');
 		iner.className = 'inerSlider';
@@ -138,7 +125,7 @@ function slider(item, config) {
 		}
 
 		function autoWorking() {
-			if (isNaN(setting.autoWorking.time) === false) {
+			if (isNaN(setting.autoWorking.time) === false && slideState.maxSlides > 1) {
 				setInterval(function () {
 					if (setting.autoWorking.direction === 'forward') {
 						changeActive(((+slideState.numSlides !== (+slideState.maxSlides - 1)) ? +slideState.numSlides + 1 : 0));
@@ -149,33 +136,46 @@ function slider(item, config) {
 			}
 		}
 
-		function changeActive(num) {
-			if (isNaN(num) === false && (num < 0 || num >= state.maxSlides)) {
+		function changeActive(newActiveSlide) {
+			if (isNaN(newActiveSlide) === false && (newActiveSlide < 0 || newActiveSlide >= state.maxSlides)) {
 				return false;
 			}
-			slides = sliderOld.children;
 			clearWaste(slides);
-			var firstClass = slides[num].className;
-			if (setting.dots.isset === true) {
-				var dots = document.querySelectorAll('.dot[data-number]');
-			}
-			if (state.firstStart) {
-				slides[num].className = firstClass + ' visable';
-				state.firstStart = false;
+			var firstClass = slides[newActiveSlide].className;
+			if (state.firstStart === true) {
+				firstChange();
 			} else {
+				change();
+			}
+
+			function firstChange() {
+				slides[newActiveSlide].className = firstClass + ' visable';
+				state.firstStart = false;
+			}
+
+			function change() {
 				slides[slideState.numSlides].style.animation = setting.animation.nameHide + ' ' + setting.animation.time + 's';
-			 	state.timer1 = setTimeout(function() {
+			 	state.timer1 = setTimeout(timersFunChange, ((setting.animation.time * 1000) - 50) );
+				state.timer2 = setTimeout(setVisable, ((setting.animation.time * 2000) - 50) );
+
+				function setVisable() {
+					slides[newActiveSlide].className = firstClass + ' visable';
+				}
+
+				function timersFunChange () {
 					slides[slideState.numSlides].style.animation = '';
-					slides[num].style.animation = setting.animation.nameShow + ' ' + setting.animation.time + 's';
-					if (setting.dots) {
-						dots[slideState.numSlides].className = dots[slideState.numSlides].className.replace(' active', '');
-						dots[num].className += ' active';
+					slides[newActiveSlide].style.animation = setting.animation.nameShow + ' ' + setting.animation.time + 's';
+					if (setting.dots.isset === true) {
+						controleDots();
 					}
-					slideState.numSlides = +num;
-				}, setting.animation.time*1000 - 50);
-				state.timer2 = setTimeout(function() {
-					slides[num].className = firstClass + ' visable';
-				}, setting.animation.time*2000 - 50);
+					slideState.numSlides = +newActiveSlide;
+
+					function controleDots () {
+						var dots = document.querySelectorAll('.dot[data-number]');
+						dots[slideState.numSlides].className = dots[slideState.numSlides].className.replace(' active', '');
+						dots[newActiveSlide].className += ' active';
+					}
+				}
 			}
 
 			function clearWaste(slides) {
@@ -184,10 +184,22 @@ function slider(item, config) {
 				if (slides[slideState.numSlides] !== undefined) {
 					slides[slideState.numSlides].className = slides[slideState.numSlides].className.replace(' visable', '');
 					slides[slideState.numSlides].style.animation = '';
-					slides[slideState.numSlides].style.animation = '';
 				}
 			}
 		}
+	}
+
+	function makeReturn() {
+		var returnObject = {};
+
+		returnObject.destroySlider = function () {
+			destroy(newSlider);
+		};
+		returnObject.getSlider = function () {
+			return newSlider;
+		};
+
+		return returnObject;
 	}
 
 	function destroy(item) {
