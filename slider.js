@@ -1,14 +1,18 @@
 var mySlider = document.getElementsByClassName('slider');
 
-var slider1 = slider(mySlider[0], {
-	dots: true,
-	animation: {
-		time: 0.4
-	}
+var slider1 = new slider(mySlider[0], {
+	dots: {isset: true},
+	animation: {time: 0.4},
+	autoWorking: {turnOn: true}
 });
-// var slider2 = slider(mySlider[0]);
+console.log(slider1);
 
 function slider(item, config) {
+	var isserItem = isValid(item);
+	if (isserItem !== true) {
+		return isserItem;
+	}
+
 	var setting = makeSetting(config);
 	var state = {
 		firstStart: true,
@@ -22,7 +26,20 @@ function slider(item, config) {
 	parent.insertBefore(newSlider, item);
 	parent.removeChild(item);
 
-	return newSlider;
+	return makeReturn();
+
+	function makeReturn () {
+		var returnObject = {};
+
+		returnObject.destroySlider = function () {
+			destroy(newSlider);
+		};
+		returnObject.getSlider = function () {
+			return newSlider;
+		};
+
+		return returnObject;
+	}
 
 	function makeInerSlider() {
 		var iner = document.createElement('div');
@@ -39,6 +56,9 @@ function slider(item, config) {
 		iner.appendChild(sliderOld);
 		iner.appendChild(panel);
 		changeActive(0);
+		if (setting.autoWorking.turnOn === true) {
+			autoWorking();
+		}
 		return iner;
 
 		function makeSlides(item) {
@@ -50,16 +70,26 @@ function slider(item, config) {
 		}
 
 		function createPanel() {
-			var left = createArrow('left');
-			var right = createArrow('right');
+			var left = null;
+			var right = null;
+			if (setting.arrow.left.isset === true) {
+				left = createArrow('left');
+			}
+			if (setting.arrow.right.isset === true) {
+				right = createArrow('right');
+			}
 
 			var panel = document.createElement('div');
 			panel.className = 'sliderPanel';
-			panel.appendChild(left);
-			if (setting.dots) {
+			if (left !== null) {
+				panel.appendChild(left);
+			}
+			if (setting.dots.isset === true) {
 				panel.appendChild(createDots());
 			}
-			panel.appendChild(right);
+			if (right !== null) {
+				panel.appendChild(right);
+			}
 			return panel;
 
 			function createArrow (direction) {
@@ -71,10 +101,10 @@ function slider(item, config) {
 				}
 				arrow.onclick = function () {
 					if (direction === 'left') {
-						changeActive(((+slideState.numSlides !== 0) ? slideState.numSlides - 1 : slideState.maxSlides - 1));
+						changeActive(((+slideState.numSlides !== 0) ? +slideState.numSlides - 1 : +slideState.maxSlides - 1));
 					}
 					else if (direction === 'right') {
-						changeActive(((+slideState.numSlides !== (slideState.maxSlides - 1)) ? +slideState.numSlides + 1 : 0));
+						changeActive(((+slideState.numSlides !== (+slideState.maxSlides - 1)) ? +slideState.numSlides + 1 : 0));
 					}
 				}
 				return arrow;
@@ -97,7 +127,7 @@ function slider(item, config) {
 
 				function clickDots () {
 					return function (e) {
-						if (isNaN(e.target.getAttribute('data-number'))) {
+						if (isNaN(e.target.getAttribute('data-number')) || e.target.getAttribute('data-number') === null) {
 							return false;
 						} else {
 							changeActive(e.target.getAttribute('data-number'));
@@ -107,11 +137,26 @@ function slider(item, config) {
 			}
 		}
 
+		function autoWorking() {
+			if (isNaN(setting.autoWorking.time) === false) {
+				setInterval(function () {
+					if (setting.autoWorking.direction === 'forward') {
+						changeActive(((+slideState.numSlides !== (+slideState.maxSlides - 1)) ? +slideState.numSlides + 1 : 0));
+					} else if (setting.autoWorking.direction === 'back') {
+						changeActive(((+slideState.numSlides !== 0) ? +slideState.numSlides - 1 : +slideState.maxSlides - 1));
+					}
+				}, setting.autoWorking.time * 1000);
+			}
+		}
+
 		function changeActive(num) {
+			if (isNaN(num) === false && (num < 0 || num >= state.maxSlides)) {
+				return false;
+			}
 			slides = sliderOld.children;
 			clearWaste(slides);
 			var firstClass = slides[num].className;
-			if (setting.dots) {
+			if (setting.dots.isset === true) {
 				var dots = document.querySelectorAll('.dot[data-number]');
 			}
 			if (state.firstStart) {
@@ -126,7 +171,7 @@ function slider(item, config) {
 						dots[slideState.numSlides].className = dots[slideState.numSlides].className.replace(' active', '');
 						dots[num].className += ' active';
 					}
-					slideState.numSlides = num;
+					slideState.numSlides = +num;
 				}, setting.animation.time*1000 - 50);
 				state.timer2 = setTimeout(function() {
 					slides[num].className = firstClass + ' visable';
@@ -145,13 +190,50 @@ function slider(item, config) {
 		}
 	}
 
+	function destroy(item) {
+		item.parentElement.removeChild(item);
+		return true;
+	}
+
+	function isValid(item) {
+		if (typeof item !== 'object' || item === null) {
+			return {
+				name: 'Error',
+				body: 'Item is not node'
+			};
+		} else if (item.children.length === 0) {
+			destroy(item);
+			return {
+				name: 'Error',
+				body: 'No Items'
+			}
+		} else {
+			return true;
+		}
+	}
+
 	function makeSetting(config) {
 		var defaults = {
-			dots: false,
+			arrow: {
+				left: {
+					isset: true
+				},
+				right: {
+					isset: true
+				}
+			},
+			dots: {
+				isset: false
+			},
 			animation: {
 				time: 0.4,
 				nameShow: 'showslide',
 				nameHide: 'hideslide'
+			},
+			autoWorking: {
+				turnOn: false,
+				time: 5,
+				direction: 'forward'
 			}
 		};
 		if (typeof config === 'object' && config !== null) {
